@@ -20,9 +20,29 @@ import math
 
 #Set up option parsing to get connection string
 import argparse  
+
+
+def connectMyCopter():
+    parser = argparse.ArgumentParser(description='commands');
+    parser.add_argument('--connect');
+    args = parser.parse_args();
+    connection_string = args.connect
+    print("starting to connect to ", connection_string);  
+    vehicle = connect(connection_string, wait_ready=False);
+    print("conencted to vehicle"); 
+    print("Get some vehicle attribute values");
+    print (" GPS: %s" % vehicle.gps_0                    )
+    print (" Battery: %s" % vehicle.battery              )
+    print (" Last Heartbeat: %s" % vehicle.last_heartbeat)
+    print (" Is Armable?: %s" % vehicle.is_armable       )
+    print (" System status: %s" % vehicle.system_status.state)
+    print (" Mode: %s" % vehicle.mode.name)   # settable 
+
+    return vehicle; 
+
 def just_arm(vehicle):
     """
-    Arms vehicle and fly to aTargetAltitude.
+    Arms vehicle
     """
     print("Basic pre-arm checks")
     # Don't let the user try to arm until autopilot is ready
@@ -41,7 +61,12 @@ def just_arm(vehicle):
         time.sleep(1)
 
     print("Arm Succesful")
+
+def disarm(vehicle):
+    print("Disarming vehicle");
+    vehicle.armed = False;
     
+
 def arm_and_takeoff(vehicle, aTargetAltitude):
     """
     Arms vehicle and fly to aTargetAltitude.
@@ -140,4 +165,53 @@ def get_bearing(aLocation1, aLocation2):
     if bearing < 0:
         bearing += 360.00
     return bearing;
+
+def set_velocity_body(vehicle, velocity_x, velocity_y, velocity_z):
+    """
+    Move vehicle in direction based on specified velocity vectors and
+    for the specified duration.
+
+    This uses the SET_POSITION_TARGET_LOCAL_NED command with a type mask enabling only 
+    velocity components 
+    (http://dev.ardupilot.com/wiki/copter-commands-in-guided-mode/#set_position_target_local_ned).
+    
+    Note that from AC3.3 the message should be re-sent every second (after about 3 seconds
+    with no message the velocity will drop back to zero). In AC3.2.1 and earlier the specified
+    velocity persists until it is canceled. The code below should work on either version 
+    (sending the message multiple times does not cause problems).
+    
+    See the above link for information on the type_mask (0=enable, 1=ignore). 
+    At time of writing, acceleration and yaw bits are ignored.
+    """
+    msg = vehicle.message_factory.set_position_target_local_ned_encode(
+        0,       # time_boot_ms (not used)
+        0, 0,    # target system, target component
+        mavutil.mavlink.MAV_FRAME_LOCAL_NED, # frame
+        0b0000111111000111, # type_mask (only speeds enabled)
+        0, 0, 0, # x, y, z positions (not used)
+        velocity_x, velocity_y, velocity_z, # x, y, z velocity in m/s
+        0, 0, 0, # x, y, z acceleration (not supported yet, ignored in GCS_Mavlink)
+        0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink) 
+
+    # send command to vehicle on 1 Hz cycle
+    vehicle.send_mavlink(msg)
+    vehicle.flush();
+
+def key(event):
+    if(event.char == event.keysym): #-- standard keys
+        if event.keysm == 'r':
+            print("r pressed. RETURN TO LAUNCH initiated")
+            vehicle.mode = VehicleMode("RTL"); 
+        else:
+            if event.keysym == 'Up':
+                print("Up pressed"); 
+                set_velocity_body(vehicle, gnd_speed, 0, 0);
+            elif event.keysym == 'Down':
+                set_velocity_body(vehicle, -gnd_speed, 0, 0);
+            elif event.keysym == 'Left':
+                set_velocity_body(vehicle, 0, -gnd_speed, 0);
+            elif event.keysym == 'Right':
+                set_velocity_body(vehicle, 0, gnd_speed, 0);
+
+
 

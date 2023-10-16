@@ -11,7 +11,7 @@ from libutils import arm_and_takeoff, condition_yaw, just_arm
 import argparse  
 parser = argparse.ArgumentParser(description='Control Copter and send commands in GUIDED mode ')
 parser.add_argument('--connect', 
-                   help="Vehicle connection target string. If not specified, SITL automatically started and used.")
+    help="Vehicle connection target string. If not specified, SITL automatically started and used.")
 args = parser.parse_args()
 
 connection_string = args.connect
@@ -23,4 +23,4 @@ vehicle = connect(connection_string, wait_ready=False)
 
 #just_arm(vehicle); 
 arm_and_takeoff(vehicle, 10); #takes off the vehicle to a height of 10 metres.
-condition_yaw(vehicle, 340, relative=False, anticlock = False, wait_till_complete=0.5) #turns the vehicle 90 degrees anticlockwise
+condition_yaw(vehicle, 340, relative=True, anticlock = False, wait_till_complete=0.5) #turns the vehicle 90 degrees anticlockwise
